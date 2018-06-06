@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+  <title>example for leaflet-rastercoords</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.0.1/dist/leaflet.js"></script>
+  <script type="text/javascript">
+(function (factory) {
+  var L
+  if (typeof define === 'function' && define.amd) {
+    define(['leaflet'], factory)
+  } else if (typeof module !== 'undefined') {
+    L = require('leaflet')
+    module.exports = factory(L)
+  } else {
+    if (typeof window.L === 'undefined') {
+      throw new Error('Leaflet must be loaded first')
+    }
+    factory(window.L)
+  }
+}(function (L) {
+  L.RasterCoords = function (map, imgsize, tilesize) {
+    this.map = map
+    this.width = imgsize[0]
+    this.height = imgsize[1]
+    this.tilesize = tilesize || 256
+    this.zoom = this.zoomLevel()
+    if (this.width && this.height) {
+      this.setMaxBounds()
+    }
+  }
+  L.RasterCoords.prototype = {
+    zoomLevel: function () {
+      return Math.ceil(
+        Math.log(
+          Math.max(this.width, this.height) /
+            this.tilesize
+        ) / Math.log(2)
+      )
+    },
+    unproject: function (coords) {
+      return this.map.unproject(coords, this.zoom)
+    },
+    project: function (coords) {
+      return this.map.project(coords, this.zoom)
+    },
+    setMaxBounds: function () {
+      var southWest = this.unproject([0, this.height])
+      var northEast = this.unproject([this.width, 0])
+      this.map.setMaxBounds(new L.LatLngBounds(southWest, northEast))
+    }
+  }
+  return L.RasterCoords
+}))
+
+function init () {
+      var img = [5000, 4000] // image width, height
+      var map = L.map('map', {minZoom: 0})
+      var rc = new L.RasterCoords(map, img)
+      map.setMaxZoom(7)
+      map.setView(rc.unproject([img[0] / 2, img[1] / 2]), 2)
+var layerBounds = L.layerGroup([
+      L.marker(rc.unproject([0, 0])).bindPopup('[0,0]'),
+      L.marker(rc.unproject(img)).bindPopup(JSON.stringify(img))
+      ])
+    map.addLayer(layerBounds)
+    map.on('click', function (event) {
+      var coords = rc.project(event.latlng)
+      var marker = L.marker(rc.unproject(coords))
+      .addTo(layerBounds)
+      marker.bindPopup('[' + Math.floor(coords.x) + ',' + Math.floor(coords.y) + ']')
+      .openPopup()
+    })
+    L.control.layers({}, {
+      'Bounds': layerBounds
+    }).addTo(map)
+L.tileLayer('tiles/{z}/{x}/{y}.png', { noWrap: true }).addTo(map)
+    }
+</script>
+  <style>html, body, #map { width:100%; height:100%; margin:0; padding:0; background-color: #B0B0B0 }</style>
+  </head>
+  <body onload="init()">
+    <div id="map"></div>
+  </body>
+  </html>
